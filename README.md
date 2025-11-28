@@ -7,40 +7,40 @@ This Helm chart deploys a production-ready LLM inference architecture on Kuberne
 The following diagram illustrates the request flow, control plane scaling, and observability integrations deployed by this chart.
 
 ```mermaid
-graph TD  
-    Client(\[Client / Application\]) \--\> LB\[Load Balancer\]
+flowchart TD
+    Client(["Client / Application"]) --> LB["Load Balancer"]
 
-    subgraph Cluster \[Kubernetes Inference Cluster\]  
-        LB \--\> Gateway  
-          
-        subgraph EAG \[Envoy AI Gateway\]  
-            Gateway\[Envoy Gateway Pods\]  
-            Feat1\[Rate Limiting\]  
-            Feat2\[Auth & Routing\]  
-        end  
-          
-        Gateway \--\> ISVC  
-          
-        subgraph DataPlane \[Data Plane\]  
-            ISVC\["KServe InferenceService\<br\>(vLLM Container)"\]  
-        end  
-          
-        subgraph ControlPlane \[Control Plane\]  
-            KEDA\[KEDA Scaler\]  
-        end  
-          
-        KEDA \-.-\>|Scale Replicas| ISVC  
+    subgraph Cluster [Kubernetes Inference Cluster]
+        LB --> Gateway
+        
+        subgraph EAG [Envoy AI Gateway]
+            Gateway["Envoy Gateway Pods"]
+            Feat1["Rate Limiting"]
+            Feat2["Auth & Routing"]
+        end
+        
+        Gateway --> ISVC
+        
+        subgraph DataPlane [Data Plane]
+            ISVC["KServe InferenceService<br>(vLLM Container)"]
+        end
+        
+        subgraph ControlPlane [Control Plane]
+            KEDA["KEDA Scaler"]
+        end
+        
+        KEDA -.->|Scale Replicas| ISVC
     end
 
-    subgraph Ops \[Observability & Governance\]  
-        Vault\[API Key Secret\] \-.-\>|Inject| Gateway  
-        Phoenix\["Arize Phoenix\<br\>(Traces/Logs)"\]  
-        Prom\["Prometheus\<br\>(Metrics)"\]  
+    subgraph Ops [Observability & Governance]
+        Vault["API Key Secret"] -.->|Inject| Gateway
+        Phoenix["Arize Phoenix<br>(Traces/Logs)"]
+        Prom["Prometheus<br>(Metrics)"]
     end
 
-    Gateway \--\>|OTEL Traces| Phoenix  
-    ISVC \--\>|Scrape Metrics| Prom  
-    Prom \--\>|Query: num\_requests\_waiting| KEDA
+    Gateway -->|OTEL Traces| Phoenix
+    ISVC -->|Scrape Metrics| Prom
+    Prom -->|Query: num_requests_waiting| KEDA
 ```
 
 1. **Envoy AI Gateway**: The entry point. Handles Authentication (API Keys), Rate Limiting (Token-based), and routing.  
