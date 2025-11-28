@@ -6,6 +6,7 @@ This Helm chart deploys a production-ready LLM inference architecture on Kuberne
 
 The following diagram illustrates the request flow, control plane scaling, and observability integrations deployed by this chart.
 
+```mermaid
 graph TD  
     Client(\[Client / Application\]) \--\> LB\[Load Balancer\]
 
@@ -40,6 +41,7 @@ graph TD
     Gateway \--\>|OTEL Traces| Phoenix  
     ISVC \--\>|Scrape Metrics| Prom  
     Prom \--\>|Query: num\_requests\_waiting| KEDA
+```
 
 1. **Envoy AI Gateway**: The entry point. Handles Authentication (API Keys), Rate Limiting (Token-based), and routing.  
 2. **KServe (Data Plane)**: Hosts the InferenceService running the **vLLM** backend.  
@@ -48,6 +50,7 @@ graph TD
 
 ## **File Structure**
 
+```
 llm-inference-stack/  
 ├── Chart.yaml                  \# Helm chart metadata  
 ├── values.yaml                 \# Default configuration values  
@@ -57,6 +60,7 @@ llm-inference-stack/
     ├── gateway-deployment.yaml \# Deployment and Service for the AI Gateway  
     ├── inference-service.yaml  \# KServe InferenceService definition (vLLM)  
     └── scaledobject.yaml       \# KEDA ScaledObject for autoscaling logic
+```
 
 ## **Prerequisites**
 
@@ -71,17 +75,23 @@ llm-inference-stack/
 
 1. Configure values.yaml:  
    Update the model.storageUri to point to your S3 bucket containing the model weights (e.g., Llama-3).  
+   ```yaml
    model:  
      name: "llama-3-70b"  
      storageUri: "s3://my-org-models/llama-3-70b/"  
      runtime:  
        gpuCount: 2 \# Adjust based on model size
+   ```
 
 2. **Install the Chart**:  
+   ```
    helm install llm-stack ./llm-inference-stack \-n kserve-inference
+   ```
 
 3. **Port Forward (for testing)**:  
+   ```
    kubectl port-forward svc/llm-stack-ai-gateway 8080:8080 \-n kserve-inference
+   ```
 
 ## **Configuration Details**
 
