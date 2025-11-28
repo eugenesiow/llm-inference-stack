@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-gateway-config
+data:
+  ai-gateway.yaml: |
+    providers:
+      - name: kserve-vllm
+        type: openai
+        api_key: "dummy" # KServe usually doesn't require auth internally, handled at Gateway
+        # This URL points to the internal KServe ClusterIP/Host
+        url: "http://{{ .Values.model.name }}-predictor-default.{{ .Release.Namespace }}.svc.cluster.local"
+
+    routes:
+      - path: /v1/completions
+        provider: kserve-vllm
+      - path: /v1/chat/completions
+        provider: kserve-vllm
+
+    {{- if .Values.gateway.rateLimits.enabled }}
+    ratelimit:
+      enabled: true
+      strategies:
+        - type: token_bucket
+          config:
+            max_tokens: {{ .Values.gateway.rateLimits.globalLimit.maxTokens }}
+            interval: {{ .Values.gateway.rateLimits.globalLimit.interval }}
+    {{- end }}
+
+    {{- if .Values.observability.phoenix.enabled }}
+    observability:
+      otel:
+        endpoint: {{ .Values.observability.phoenix.endpoint }}
+        service_name: "envoy-ai-gateway"
+        attributes:
+          project: {{ .Values.observability.phoenix.project_name }}
+    {{- end }}

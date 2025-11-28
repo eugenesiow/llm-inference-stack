@@ -1,0 +1,30 @@
+# **Helm package files**
+
+\*.tgz  
+\*.lock
+
+# **Helm dependencies (re-generated on 'helm dependency build')**
+
+charts/  
+tmp/
+
+# **OS specific**
+
+.DS\_Store  
+Thumbs.db  
+.fseventsd
+
+# **IDEs and Editors**
+
+.idea/  
+.vscode/  
+\*.swp  
+\*.swo
+
+# **Credentials and Secrets (Safety net)**
+
+secrets.yaml  
+\*.key  
+\*.pem  
+\*.p12  
+\*.crt

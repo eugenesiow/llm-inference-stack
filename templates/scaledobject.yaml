@@ -1,0 +1,29 @@
+{{- if .Values.autoscaling.enabled }}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ .Values.model.name }}-scaler
+spec:
+  scaleTargetRef:
+    # KServe creates a Deployment named <predictor-name>-predictor-default-<revision>
+    # Note: This is complex in KServe as revision names change. 
+    # Standard KServe typically handles this via 'serving.kserve.io/autoscalerClass: keda'
+    # However, if you need a custom Prometheus query on vLLM metrics, you define it here
+    # targeting the deployment created by KServe.
+    # PRO TIP: Generally, KServe + KEDA integration is best handled by the KServe Controller.
+    # If using standalone KEDA for custom metrics:
+    name: {{ .Values.model.name }}-predictor-default-00001-deployment # Requires predicting the revision name or using KServe capabilities
+    kind: Deployment
+    apiVersion: apps/v1
+  minReplicaCount: {{ .Values.autoscaling.minReplicas }}
+  maxReplicaCount: {{ .Values.autoscaling.maxReplicas }}
+  triggers:
+    - type: prometheus
+      metadata:
+        serverAddress: http://prometheus-k8s.monitoring.svc.cluster.local:9090
+        metricName: vllm_num_requests_waiting
+        threshold: "{{ .Values.autoscaling.metrics.targetValue }}"
+        # Query vLLM metrics exposed by the Service
+        query: |
+          sum(vllm:num_requests_waiting{service="{{ .Values.model.name }}-predictor-default"})
+{{- end }}

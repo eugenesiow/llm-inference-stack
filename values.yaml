@@ -1,0 +1,58 @@
+# Default values for llm-inference-stack.
+
+model:
+  name: "llama-3-8b"
+  # The S3 URI or PVC path where the model weights are stored
+  storageUri: "s3://my-model-bucket/llama-3-8b"
+  # Service Account that has permissions to pull from S3/Storage
+  serviceAccountName: "default"
+  runtime:
+    # If you have a ClusterServingRuntime for vllm defined, use it here. 
+    # Otherwise, we default to a custom predictor container in the template.
+    image: "vllm/vllm-openai:latest"
+    gpuCount: 1
+    memory: "16Gi"
+    # Specific arguments for vLLM
+    args:
+      - "--model=/mnt/models"
+      - "--gpu-memory-utilization=0.95"
+      - "--max-model-len=4096"
+
+gateway:
+  image: "envoyproxy/envoy-ai-gateway:latest" # Use the appropriate tag for Envoy AI Gateway
+  replicas: 1
+  service:
+    type: ClusterIP
+    port: 8080
+  # Rate Limiting Configuration
+  rateLimits:
+    enabled: true
+    globalLimit:
+      maxTokens: 10000
+      interval: "60s"
+
+observability:
+  phoenix:
+    enabled: true
+    # The OTLP gRPC endpoint for Arize Phoenix
+    endpoint: "http://phoenix-collector.observability.svc.cluster.local:4317"
+    project_name: "llm-inference-prod"
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 5
+  # Scale based on vLLM metrics scraped by Prometheus
+  metrics:
+    # Example: Scale if average requests waiting in queue > 5
+    # This requires Prometheus adapter or KEDA Prometheus trigger configured in KServe
+    targetMetric: "vllm:num_requests_waiting" 
+    targetValue: "5"
+
+# Governance / Auth
+apiKeys:
+  secretName: "ai-gateway-api-keys"
+  # If created manually or via Vault/ESO, leave this empty. 
+  # If you want Helm to create a dummy secret, populate below.
+  existingSecret: false
+  dummyKey: "sk-1234567890abcdef"

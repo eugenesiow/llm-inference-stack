@@ -1,0 +1,43 @@
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: {{ .Values.model.name }}
+  annotations:
+    # Enable KEDA Autoscaling
+    serving.kserve.io/autoscalerClass: keda
+    {{- if .Values.autoscaling.enabled }}
+    serving.kserve.io/minScale: "{{ .Values.autoscaling.minReplicas }}"
+    serving.kserve.io/maxScale: "{{ .Values.autoscaling.maxReplicas }}"
+    # Autoscaling targets (Generic KServe annotations, specifics handled by KEDA ScaledObject if needed)
+    serving.kserve.io/targetUtilizationPercentage: "80"
+    {{- end }}
+    # Sidecar injection for OTEL/Prometheus scraping if needed
+    sidecar.istio.io/inject: "true"
+spec:
+  predictor:
+    serviceAccountName: {{ .Values.model.serviceAccountName }}
+    # We use a custom container to ensure specific vLLM version and args
+    containers:
+      - name: kserve-container
+        image: {{ .Values.model.runtime.image }}
+        command:
+          - "python3"
+          - "-m"
+          - "vllm.entrypoints.openai.api_server"
+        args:
+          {{- range .Values.model.runtime.args }}
+          - {{ . | quote }}
+          {{- end }}
+        env:
+          - name: STORAGE_URI
+            value: {{ .Values.model.storageUri }}
+        resources:
+          limits:
+            nvidia.com/gpu: {{ .Values.model.runtime.gpuCount }}
+            memory: {{ .Values.model.runtime.memory }}
+          requests:
+            nvidia.com/gpu: {{ .Values.model.runtime.gpuCount }}
+            memory: {{ .Values.model.runtime.memory }}
+        ports:
+          - containerPort: 8000
+            protocol: TCP

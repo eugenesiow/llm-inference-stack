@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-ai-gateway
+  labels:
+    app: ai-gateway
+spec:
+  replicas: {{ .Values.gateway.replicas }}
+  selector:
+    matchLabels:
+      app: ai-gateway
+  template:
+    metadata:
+      labels:
+        app: ai-gateway
+      annotations:
+        # Restart pods if config changes
+        checksum/config: {{ include (print $.Template.BasePath "/configmap-gateway.yaml") . | sha256sum }}
+    spec:
+      containers:
+        - name: envoy-ai-gateway
+          image: {{ .Values.gateway.image }}
+          ports:
+            - containerPort: {{ .Values.gateway.service.port }}
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/envoy-ai-gateway/config.yaml
+              subPath: ai-gateway.yaml
+          env:
+            - name: ENVOY_CONFIG_PATH
+              value: /etc/envoy-ai-gateway/config.yaml
+            # If using API Keys via Vault/Secret
+            - name: API_KEY_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.apiKeys.secretName }}
+                  key: api-key
+                  optional: true
+      volumes:
+        - name: config-volume
+          configMap:
+            name: {{ .Release.Name }}-gateway-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-ai-gateway
+spec:
+  selector:
+    app: ai-gateway
+  ports:
+    - protocol: TCP
+      port: {{ .Values.gateway.service.port }}
+      targetPort: {{ .Values.gateway.service.port }}
+  type: {{ .Values.gateway.service.type }}
